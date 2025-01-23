@@ -1,0 +1,14 @@
+[package]
+name = "iroh-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.95"
+clap = { version = "4.5.18", features = ["derive"] }
+crossterm = { version = "0.28.1", features = ["event-stream"] }
+futures-lite = "2.6.0"
+iroh = "0.31.0"
+rand = "0.8.5"
+ratatui = "0.29.0"
+tokio = { version = "1.43.0", features = ["full"] }
