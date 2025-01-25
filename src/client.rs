@@ -1,75 +1,70 @@
-use std::io;
+use std::{io, sync::{Arc}};
 
-use clap::Parser;
-use crossterm::event::EventStream;
-use futures_lite::{future::Boxed, StreamExt};
-use iroh::{
-    discovery::{dns::DnsDiscovery, pkarr::PkarrPublisher, ConcurrentDiscovery},
-    endpoint::{self, Connecting, Connection, Incoming, VarInt},
-    protocol::{ProtocolHandler, Router},
-    Endpoint, NodeId, PublicKey,
-};
-use ratatui::{
-    crossterm::event::{self, KeyCode, KeyEventKind},
-    layout::Layout,
-    symbols::border,
-    text::{Line, Text},
-    widgets::{Block, Paragraph, Widget},
-    DefaultTerminal, Frame,
-};
-use tokio::{io::{AsyncReadExt, AsyncWriteExt}, sync::oneshot};
+use crossterm::event::{Event, EventStream, KeyCode, KeyEventKind};
+use futures_lite::StreamExt;
+use iroh::endpoint::{Connection, VarInt};
+use ratatui::DefaultTerminal;
+use tokio::{io::{AsyncReadExt, AsyncWriteExt}, sync::{mpsc::{self, Sender, UnboundedSender}, oneshot, Mutex}};
 
-use crate::util::{read_number, read_q, Board, Field};
+use crate::util::{input_loop, read_number, read_q, Board, Field};
 
 pub struct Client {
     connection: Connection,
-    board: Board,
+    board: Arc<Mutex<Board>>,
     end: bool,
 }
 impl Client {
-    pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+    pub async fn run(&mut self, terminal: DefaultTerminal) -> io::Result<()> {
+        let terminal = Arc::new(Mutex::new(terminal));
+        let (tx, mut rx) = mpsc::channel(32);
+        let (end_tx, end_rx) = oneshot::channel();
         let (mut send, mut recv) = self.connection.open_bi().await?;
         send.write_u8(0).await;
-        loop {
-            terminal.draw(|frame| frame.render_widget(&self.board, frame.area()))?;
-            let number = recv.read_u8().await.unwrap() as usize;
-            let _ = self.board.place(number, Field::Server);
-            if !self.board.is_playing() {
-                // TODO: Error message
-                break;
-            }
-            if self.board.is_win(Field::Server) {
-                terminal.draw(|frame| frame.render_widget(&self.board, frame.area()))?;
-                break;
-            }
-            terminal.draw(|frame| frame.render_widget(&self.board, frame.area()))?;
-            while self.board.is_playing() {
-                if let Some(number) = read_number()? {
-                    if number < 1 {
-                        continue;
+        {
+            let board = self.board.lock().await;
+            terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area())).unwrap();
+        }
+        let input_handle = tokio::spawn(input_loop(self.board.clone(), terminal.clone(), tx, end_tx, Field::Client));
+        tokio::select! {
+            _ = async {
+                loop {
+                    let index = recv.read_u8().await?; 
+                    {
+                        let mut board = self.board.lock().await;
+                        let _ = board.place(index as usize, Field::Server);
+                        if !board.is_playing() {
+                            break;
+                        }
+                        terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area())).unwrap();
+                        if board.is_win(Field::Server) {
+                            break;
+                        }
                     }
-                    let _ = self.board.place(number - 1, Field::Client);
-                    if !self.board.is_playing() {
-                        send.write_u8((number - 1) as u8).await.unwrap();
+                    let index = rx.recv().await.unwrap();
+                    send.write_u8(index.try_into().unwrap()).await?;
+                    {
+                        let board = self.board.lock().await;
+                        if board.is_win(Field::Client) {
+                            break;
+                        }
                     }
                 }
-            }
-            if self.board.is_win(Field::Client) {
-                terminal.draw(|frame| frame.render_widget(&self.board, frame.area()))?;
-                break;
-            }
+                Ok::<_, io::Error>(())
+            } => {}
+            _ = end_rx => {}
         }
         send.finish();
         self.connection.close(VarInt::from_u32(0), &[]);
-        read_q()?;
+        input_handle.await;
         Ok(())
     }
+
 
 
     pub fn new(connection: Connection) -> Self {
         Self {
             connection,
-            board: Board::new(false),
+            board: Arc::new(Mutex::new(Board::new(false))),
             end: false,
         }
     }

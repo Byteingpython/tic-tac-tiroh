@@ -1,22 +1,13 @@
-use std::io;
+use std::{io, sync::Arc};
 
-use clap::Parser;
-use futures_lite::future::Boxed;
-use iroh::{
-    discovery::{dns::DnsDiscovery, pkarr::PkarrPublisher, ConcurrentDiscovery},
-    endpoint::{self, Connecting, Incoming, VarInt},
-    protocol::{ProtocolHandler, Router},
-    Endpoint, NodeId, PublicKey,
-};
+use crossterm::event::{Event, EventStream};
+use futures_lite::StreamExt;
 use ratatui::{
     crossterm::event::{self, KeyCode, KeyEventKind},
-    layout::Layout,
     symbols::border,
-    text::{Line, Text},
-    widgets::{Block, Paragraph, Widget},
-    DefaultTerminal, Frame,
+    widgets::{Block, Paragraph, Widget}, DefaultTerminal,
 };
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::{mpsc, oneshot, Mutex};
 use std::str::FromStr;
 
 use iroh::{SecretKey};
@@ -32,7 +23,7 @@ pub fn get_or_create_secret() -> anyhow::Result<SecretKey> {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum Field {
     Empty,
     Server,
@@ -190,4 +181,39 @@ pub fn read_q() -> io::Result<()> {
         }
     }
     Ok(())
+}
+pub async fn input_loop(board: Arc<Mutex<Board>>, terminal: Arc<Mutex<DefaultTerminal>>, channel: mpsc::Sender<u32>, end_callback: oneshot::Sender<()>, field_type: Field) {
+    let mut stream = EventStream::new();
+    loop {
+        // TODO: Proper error handling
+        let event = stream.next().await.unwrap().unwrap();
+        match event {
+            Event::Resize(_, _) => {
+                let board = board.lock().await;
+                terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area())).unwrap();
+            }
+            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
+                let mut board = board.lock().await;
+                if let KeyCode::Char(c) = key_event.code {
+                    if c.is_digit(10) {
+                        if !board.is_playing() {
+                            continue;
+                        }
+                        let index = c.to_digit(10).unwrap() -1;
+                        board.place(index as usize, field_type.clone());
+                        if board.is_playing() {
+                            continue;
+                        }
+                        channel.send(index).await;
+                        terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area())).unwrap();
+                    } else if c == 'q' {
+                        end_callback.send(());
+                        break;
+                    }
+                }
+            },
+            _ => {}
+        }
+    }
+
 }

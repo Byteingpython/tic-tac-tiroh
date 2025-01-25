@@ -1,25 +1,12 @@
-use std::io;
 
 use clap::Parser;
 use client::Client;
-use futures_lite::future::Boxed;
 use iroh::{
     discovery::{dns::DnsDiscovery, pkarr::PkarrPublisher, ConcurrentDiscovery},
-    endpoint::{self, Connecting, Incoming, VarInt},
-    protocol::{ProtocolHandler, Router},
-    Endpoint, NodeId, PublicKey,
-};
-use ratatui::{
-    crossterm::event::{self, KeyCode, KeyEventKind},
-    layout::Layout,
-    symbols::border,
-    text::{Line, Text},
-    widgets::{Block, Paragraph, Widget},
-    DefaultTerminal, Frame,
+    Endpoint, NodeId,
 };
 use server::Server;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use util::{get_or_create_secret, Board};
+use util::get_or_create_secret;
 
 mod util;
 mod server;
@@ -47,16 +34,16 @@ async fn main() -> anyhow::Result<()> {
         .discovery(discovery)
         .bind()
         .await?;
-    let mut terminal = ratatui::init();
+    let terminal = ratatui::init();
     let result = match args.id {
         Some(id) => {
             let connection = endpoint.connect(id, WEB3_ALPN).await?;
             let mut client = Client::new(connection);
-            client.run(&mut terminal).await
+            client.run(terminal).await
         }
         None => {
             let mut server = Server::new(endpoint);
-            server.run(&mut terminal).await
+            server.run(terminal).await
         }
     };
     ratatui::restore();
