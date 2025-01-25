@@ -1902,20 +1902,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "iroh-test"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "crossterm",
- "futures-lite",
- "iroh",
- "rand",
- "ratatui",
- "tokio",
-]
-
-[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3797,6 +3783,20 @@ checksum = "8b9ef9bad013ada3808854ceac7b46812a6465ba368859a37e2100283d2d719c"
 dependencies = [
  "cfg-if",
  "once_cell",
+]
+
+[[package]]
+name = "tic-tac-tiroh"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "crossterm",
+ "futures-lite",
+ "iroh",
+ "rand",
+ "ratatui",
+ "tokio",
 ]
 
 [[package]]

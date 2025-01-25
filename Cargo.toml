@@ -1,5 +1,5 @@
 [package]
-name = "iroh-test"
+name = "tic-tac-tiroh"
 version = "0.1.0"
 edition = "2021"
 
