@@ -1,4 +1,3 @@
-
 use clap::Parser;
 use client::Client;
 use iroh::{
@@ -8,10 +7,10 @@ use iroh::{
 use server::Server;
 use util::get_or_create_secret;
 
-mod util;
-mod server;
 mod client;
 mod error;
+mod server;
+mod util;
 
 const WEB3_ALPN: &[u8] = b"WEB3_2024";
 
@@ -36,9 +35,7 @@ async fn main() -> anyhow::Result<()> {
         .bind()
         .await?;
     let connection = match args.id {
-        Some(id) => {
-            endpoint.connect(id, WEB3_ALPN).await?
-        }
+        Some(id) => endpoint.connect(id, WEB3_ALPN).await?,
         None => {
             println!("Give your peer this ID: {}", endpoint.node_id());
             println!("Waiting for connection...");
@@ -60,4 +57,3 @@ async fn main() -> anyhow::Result<()> {
     result?;
     Ok(())
 }
-

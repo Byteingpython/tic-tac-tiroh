@@ -5,12 +5,13 @@ use futures_lite::StreamExt;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEventKind},
     symbols::border,
-    widgets::{Block, Paragraph, Widget}, DefaultTerminal,
+    widgets::{Block, Paragraph, Widget},
+    DefaultTerminal,
 };
-use tokio::sync::{mpsc, oneshot, Mutex};
 use std::str::FromStr;
+use tokio::sync::{mpsc, oneshot, Mutex};
 
-use iroh::{SecretKey};
+use iroh::SecretKey;
 
 use crate::error::Result;
 
@@ -55,7 +56,6 @@ impl Widget for &Board {
             true => "Your turn",
             false => "Others turn",
         };
-        
 
         // TODO: There has to be a better way
         if self.is_win(Field::Server) {
@@ -63,7 +63,7 @@ impl Widget for &Board {
         } else if self.is_win(Field::Client) {
             title = "O wins!";
         }
-        
+
         let block = Block::bordered().border_set(border::THICK).title(title);
         let mut fill: [String; 9] = [const { String::new() }; 9];
         for (i, field) in self.board.iter().enumerate() {
@@ -161,14 +161,23 @@ impl Board {
     }
 }
 
-pub async fn input_loop(board: Arc<Mutex<Board>>, terminal: Arc<Mutex<DefaultTerminal>>, channel: mpsc::Sender<u32>, end_callback: oneshot::Sender<()>, field_type: Field) -> Result<()> {
+pub async fn input_loop(
+    board: Arc<Mutex<Board>>,
+    terminal: Arc<Mutex<DefaultTerminal>>,
+    channel: mpsc::Sender<u32>,
+    end_callback: oneshot::Sender<()>,
+    field_type: Field,
+) -> Result<()> {
     let mut stream = EventStream::new();
     while let Some(event) = stream.next().await {
         let event = event?;
         match event {
             Event::Resize(_, _) => {
                 let board = board.lock().await;
-                terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area()))?;
+                terminal
+                    .lock()
+                    .await
+                    .draw(|frame| frame.render_widget(&*board, frame.area()))?;
             }
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
                 let mut board = board.lock().await;
@@ -177,19 +186,22 @@ pub async fn input_loop(board: Arc<Mutex<Board>>, terminal: Arc<Mutex<DefaultTer
                         if !board.is_playing() {
                             continue;
                         }
-                        let index = c.to_digit(10).unwrap() -1;
+                        let index = c.to_digit(10).unwrap() - 1;
                         let _ = board.place(index as usize, field_type.clone());
                         if board.is_playing() {
                             continue;
                         }
                         channel.send(index).await?;
-                        terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area()))?;
+                        terminal
+                            .lock()
+                            .await
+                            .draw(|frame| frame.render_widget(&*board, frame.area()))?;
                     } else if c == 'q' {
                         let _ = end_callback.send(());
-                        return Ok(())
+                        return Ok(());
                     }
                 }
-            },
+            }
             _ => {}
         }
     }

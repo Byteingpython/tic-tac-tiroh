@@ -18,7 +18,7 @@ pub enum Error {
     #[error("Input thread stopped prematurely")]
     InputAbort,
     #[error("Error sending input to connection thread")]
-    Send(#[from] SendError<u32>)
+    Send(#[from] SendError<u32>),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

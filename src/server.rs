@@ -2,9 +2,15 @@ use std::{io, sync::Arc};
 
 use iroh::endpoint::Connection;
 use ratatui::DefaultTerminal;
-use tokio::{io::{AsyncReadExt, AsyncWriteExt}, sync::{mpsc, oneshot, Mutex}};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    sync::{mpsc, oneshot, Mutex},
+};
 
-use crate::{error::Result, util::{input_loop, Board, Field}};
+use crate::{
+    error::Result,
+    util::{input_loop, Board, Field},
+};
 
 pub struct Server {
     connection: Connection,
@@ -19,9 +25,19 @@ impl Server {
         recv.read_u8().await?;
         {
             let board = self.board.lock().await;
-            terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area())).unwrap();
+            terminal
+                .lock()
+                .await
+                .draw(|frame| frame.render_widget(&*board, frame.area()))
+                .unwrap();
         }
-        let input_handle = tokio::spawn(input_loop(self.board.clone(), terminal.clone(), tx, end_tx, Field::Server));
+        let input_handle = tokio::spawn(input_loop(
+            self.board.clone(),
+            terminal.clone(),
+            tx,
+            end_tx,
+            Field::Server,
+        ));
         tokio::select! {
             _ = async {
                 loop {
@@ -33,7 +49,7 @@ impl Server {
                             break;
                         }
                     }
-                    let index = recv.read_u8().await?; 
+                    let index = recv.read_u8().await?;
                     {
                         let mut board = self.board.lock().await;
                         let _ = board.place(index as usize, Field::Client);
@@ -55,7 +71,6 @@ impl Server {
         input_handle.await??;
         Ok(())
     }
-
 
     pub fn new(connection: Connection) -> Self {
         Self {
