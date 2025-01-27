@@ -12,21 +12,21 @@ use ratatui::{
 };
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, sync::{mpsc, oneshot, Mutex}};
 
-use crate::util::{input_loop, read_number, read_q, Board, Field};
+use crate::{error::Result, util::{input_loop, read_number, read_q, Board, Field}};
 
 pub struct Server {
     endpoint: Endpoint,
     board: Arc<Mutex<Board>>,
 }
 impl Server {
-    pub async fn run(&mut self, mut terminal: DefaultTerminal) -> io::Result<()> {
+    pub async fn run(&mut self, mut terminal: DefaultTerminal) -> Result<()> {
         terminal.draw(|frame| self.draw_connect_sceen(frame))?;
         let terminal = Arc::new(Mutex::new(terminal));
         let (tx, mut rx) = mpsc::channel(32);
         let (end_tx, end_rx) = oneshot::channel();
         let connection = self.endpoint.accept().await.unwrap().await?;
         let (mut send, mut recv) = connection.accept_bi().await?;
-        recv.read_u8().await;
+        recv.read_u8().await?;
         {
             let board = self.board.lock().await;
             terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area())).unwrap();
@@ -60,9 +60,9 @@ impl Server {
             } => {}
             _ = end_rx => {}
         }
-        send.finish();
+        let _ = send.finish();
         connection.closed().await;
-        input_handle.await;
+        input_handle.await?;
         Ok(())
     }
 

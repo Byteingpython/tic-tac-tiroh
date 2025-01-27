@@ -11,6 +11,7 @@ use util::get_or_create_secret;
 mod util;
 mod server;
 mod client;
+mod error;
 
 const WEB3_ALPN: &[u8] = b"WEB3_2024";
 

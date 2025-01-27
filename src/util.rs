@@ -12,6 +12,8 @@ use std::str::FromStr;
 
 use iroh::{SecretKey};
 
+use crate::error::Result;
+
 pub fn get_or_create_secret() -> anyhow::Result<SecretKey> {
     if let Ok(secret) = std::env::var("SECRET") {
         let secret = SecretKey::from_str(&secret)?;
@@ -182,15 +184,15 @@ pub fn read_q() -> io::Result<()> {
     }
     Ok(())
 }
-pub async fn input_loop(board: Arc<Mutex<Board>>, terminal: Arc<Mutex<DefaultTerminal>>, channel: mpsc::Sender<u32>, end_callback: oneshot::Sender<()>, field_type: Field) {
+
+pub async fn input_loop(board: Arc<Mutex<Board>>, terminal: Arc<Mutex<DefaultTerminal>>, channel: mpsc::Sender<u32>, end_callback: oneshot::Sender<()>, field_type: Field) -> Result<()> {
     let mut stream = EventStream::new();
-    loop {
-        // TODO: Proper error handling
-        let event = stream.next().await.unwrap().unwrap();
+    while let Some(event) = stream.next().await {
+        let event = event?;
         match event {
             Event::Resize(_, _) => {
                 let board = board.lock().await;
-                terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area())).unwrap();
+                terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area()))?;
             }
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
                 let mut board = board.lock().await;
@@ -205,15 +207,15 @@ pub async fn input_loop(board: Arc<Mutex<Board>>, terminal: Arc<Mutex<DefaultTer
                             continue;
                         }
                         channel.send(index).await;
-                        terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area())).unwrap();
+                        terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area()))?;
                     } else if c == 'q' {
                         end_callback.send(());
-                        break;
+                        return Ok(())
                     }
                 }
             },
             _ => {}
         }
     }
-
+    Err(crate::error::Error::InputAbort)
 }

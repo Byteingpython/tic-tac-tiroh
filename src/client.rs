@@ -6,7 +6,7 @@ use iroh::endpoint::{Connection, VarInt};
 use ratatui::DefaultTerminal;
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, sync::{mpsc::{self, Sender, UnboundedSender}, oneshot, Mutex}};
 
-use crate::util::{input_loop, read_number, read_q, Board, Field};
+use crate::{error::Result, util::{input_loop, read_number, read_q, Board, Field}};
 
 pub struct Client {
     connection: Connection,
@@ -14,12 +14,12 @@ pub struct Client {
     end: bool,
 }
 impl Client {
-    pub async fn run(&mut self, terminal: DefaultTerminal) -> io::Result<()> {
+    pub async fn run(&mut self, terminal: DefaultTerminal) -> Result<()> {
         let terminal = Arc::new(Mutex::new(terminal));
         let (tx, mut rx) = mpsc::channel(32);
         let (end_tx, end_rx) = oneshot::channel();
         let (mut send, mut recv) = self.connection.open_bi().await?;
-        send.write_u8(0).await;
+        send.write_u8(0).await?;
         {
             let board = self.board.lock().await;
             terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area())).unwrap();
@@ -53,9 +53,9 @@ impl Client {
             } => {}
             _ = end_rx => {}
         }
-        send.finish();
+        let _ = send.finish();
         self.connection.close(VarInt::from_u32(0), &[]);
-        input_handle.await;
+        input_handle.await?;
         Ok(())
     }
 
