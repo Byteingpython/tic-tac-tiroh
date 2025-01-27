@@ -35,15 +35,24 @@ async fn main() -> anyhow::Result<()> {
         .discovery(discovery)
         .bind()
         .await?;
+    let connection = match args.id {
+        Some(id) => {
+            endpoint.connect(id, WEB3_ALPN).await?
+        }
+        None => {
+            println!("Give your peer this ID: {}", endpoint.node_id());
+            println!("Waiting for connection...");
+            endpoint.accept().await.unwrap().await?
+        }
+    };
     let terminal = ratatui::init();
     let result = match args.id {
-        Some(id) => {
-            let connection = endpoint.connect(id, WEB3_ALPN).await?;
+        Some(_) => {
             let mut client = Client::new(connection);
             client.run(terminal).await
         }
         None => {
-            let mut server = Server::new(endpoint);
+            let mut server = Server::new(connection);
             server.run(terminal).await
         }
     };

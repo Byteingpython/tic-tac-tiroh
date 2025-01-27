@@ -103,7 +103,7 @@ impl Board {
         self.playing
     }
 
-    pub fn place(&mut self, index: usize, field_type: Field) -> Result<(), ()> {
+    pub fn place(&mut self, index: usize, field_type: Field) -> std::result::Result<(), ()> {
         if index > 8 {
             return Err(());
         }
