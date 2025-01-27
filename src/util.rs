@@ -1,9 +1,9 @@
-use std::{io, sync::Arc};
+use std::sync::Arc;
 
 use crossterm::event::{Event, EventStream};
 use futures_lite::StreamExt;
 use ratatui::{
-    crossterm::event::{self, KeyCode, KeyEventKind},
+    crossterm::event::{KeyCode, KeyEventKind},
     symbols::border,
     widgets::{Block, Paragraph, Widget}, DefaultTerminal,
 };
@@ -160,30 +160,6 @@ impl Board {
         false
     }
 }
-pub fn read_number() ->io::Result<Option<usize>> {
-    match event::read()? {
-        event::Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-            if let KeyCode::Char(c) = key_event.code {
-                if c.is_numeric() {
-                    return Ok(Some(c.to_digit(10).unwrap() as usize));
-                }
-            }
-        }
-        _ => {}
-    }
-    Ok(None)
-}
-
-pub fn read_q() -> io::Result<()> {
-    loop {
-        if let event::Event::Key(key_event) = event::read()? {
-            if key_event.kind == KeyEventKind::Press && key_event.code == KeyCode::Char('q'){
-                break;
-            }
-        }
-    }
-    Ok(())
-}
 
 pub async fn input_loop(board: Arc<Mutex<Board>>, terminal: Arc<Mutex<DefaultTerminal>>, channel: mpsc::Sender<u32>, end_callback: oneshot::Sender<()>, field_type: Field) -> Result<()> {
     let mut stream = EventStream::new();
@@ -202,14 +178,14 @@ pub async fn input_loop(board: Arc<Mutex<Board>>, terminal: Arc<Mutex<DefaultTer
                             continue;
                         }
                         let index = c.to_digit(10).unwrap() -1;
-                        board.place(index as usize, field_type.clone());
+                        let _ = board.place(index as usize, field_type.clone());
                         if board.is_playing() {
                             continue;
                         }
-                        channel.send(index).await;
+                        channel.send(index).await?;
                         terminal.lock().await.draw(|frame| frame.render_widget(&*board, frame.area()))?;
                     } else if c == 'q' {
-                        end_callback.send(());
+                        let _ = end_callback.send(());
                         return Ok(())
                     }
                 }

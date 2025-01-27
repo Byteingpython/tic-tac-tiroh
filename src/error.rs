@@ -1,7 +1,7 @@
 use std::io;
 
 use thiserror::Error;
-use tokio::task::JoinError;
+use tokio::{sync::mpsc::error::SendError, task::JoinError};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -16,7 +16,9 @@ pub enum Error {
     #[error("Error joining on input thread: {0}")]
     JoinError(#[from] JoinError),
     #[error("Input thread stopped prematurely")]
-    InputAbort
+    InputAbort,
+    #[error("Error sending input to connection thread")]
+    Send(#[from] SendError<u32>)
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

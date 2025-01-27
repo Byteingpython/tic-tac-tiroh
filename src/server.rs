@@ -1,24 +1,17 @@
 use std::{io, sync::Arc};
 
-use iroh::{
-    endpoint::Connection, protocol::ProtocolHandler, Endpoint
-};
-use ratatui::{
-    symbols::border,
-    text::{Line, Text},
-    widgets::{Block, Paragraph},
-    DefaultTerminal, Frame,
-};
+use iroh::endpoint::Connection;
+use ratatui::DefaultTerminal;
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, sync::{mpsc, oneshot, Mutex}};
 
-use crate::{error::Result, util::{input_loop, read_number, read_q, Board, Field}};
+use crate::{error::Result, util::{input_loop, Board, Field}};
 
 pub struct Server {
     connection: Connection,
     board: Arc<Mutex<Board>>,
 }
 impl Server {
-    pub async fn run(&mut self, mut terminal: DefaultTerminal) -> Result<()> {
+    pub async fn run(&mut self, terminal: DefaultTerminal) -> Result<()> {
         let terminal = Arc::new(Mutex::new(terminal));
         let (tx, mut rx) = mpsc::channel(32);
         let (end_tx, end_rx) = oneshot::channel();

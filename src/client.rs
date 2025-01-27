@@ -1,17 +1,14 @@
 use std::{io, sync::{Arc}};
 
-use crossterm::event::{Event, EventStream, KeyCode, KeyEventKind};
-use futures_lite::StreamExt;
 use iroh::endpoint::{Connection, VarInt};
 use ratatui::DefaultTerminal;
-use tokio::{io::{AsyncReadExt, AsyncWriteExt}, sync::{mpsc::{self, Sender, UnboundedSender}, oneshot, Mutex}};
+use tokio::{io::{AsyncReadExt, AsyncWriteExt}, sync::{mpsc::{self}, oneshot, Mutex}};
 
-use crate::{error::Result, util::{input_loop, read_number, read_q, Board, Field}};
+use crate::{error::Result, util::{input_loop, Board, Field}};
 
 pub struct Client {
     connection: Connection,
     board: Arc<Mutex<Board>>,
-    end: bool,
 }
 impl Client {
     pub async fn run(&mut self, terminal: DefaultTerminal) -> Result<()> {
@@ -55,7 +52,7 @@ impl Client {
         }
         let _ = send.finish();
         self.connection.close(VarInt::from_u32(0), &[]);
-        input_handle.await?;
+        input_handle.await??;
         Ok(())
     }
 
@@ -65,7 +62,6 @@ impl Client {
         Self {
             connection,
             board: Arc::new(Mutex::new(Board::new(false))),
-            end: false,
         }
     }
 }
