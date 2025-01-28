@@ -14,8 +14,20 @@ mod util;
 
 const WEB3_ALPN: &[u8] = b"WEB3_2024";
 
+
+/**
+   _______         ______              _______            __  
+  /_  __(_)____   /_  __/___ ______   /_  __(_)________  / /_ 
+   / / / / ___/    / / / __ `/ ___/    / / / / ___/ __ \/ __ \
+  / / / / /__     / / / /_/ / /__     / / / / /  / /_/ / / / /
+ /_/ /_/\___/    /_/  \__,_/\___/    /_/ /_/_/   \____/_/ /_/ 
+                                                              
+ Tic Tac Toe over the Iroh p2p protocol                       
+*/
 #[derive(Debug, Parser)]
+#[clap(verbatim_doc_comment)]
 struct Args {
+    /// The ID of your peer. Leave blank to generate a new ID
     id: Option<NodeId>,
 }
 
