@@ -12,10 +12,10 @@ Tic-Tac-Tiroh is a **WIP** implementation of Tic Tac Toe over the [Iroh](https:/
 ## Usage 
 To play you first have to start the program without any arguments. This will cause the application to start waiting for connections to the display its NodeID.
 ```bash
-cargo run
+cargo run tic-tac-toe
 ```
 
 You can now give your peer that NodeID and specify it as the first argument.
 ```bash
-cargo run <node-id>
+cargo run tic-tac-toe <node-id>
 ```

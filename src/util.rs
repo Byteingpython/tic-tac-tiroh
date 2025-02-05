@@ -3,7 +3,12 @@ use std::sync::Arc;
 use crossterm::event::{Event, EventStream};
 use futures_lite::StreamExt;
 use ratatui::{
-    crossterm::event::{KeyCode, KeyEventKind}, style::Stylize, symbols::border, text::Line, widgets::{Block, Paragraph, Widget}, DefaultTerminal
+    crossterm::event::{KeyCode, KeyEventKind},
+    style::Stylize,
+    symbols::border,
+    text::Line,
+    widgets::{Block, Paragraph, Widget},
+    DefaultTerminal,
 };
 use std::str::FromStr;
 use tokio::sync::{mpsc, oneshot, Mutex};
@@ -26,6 +31,11 @@ pub fn get_or_create_secret() -> anyhow::Result<SecretKey> {
 #[derive(PartialEq, Clone)]
 pub enum Field {
     Empty,
+    Server,
+    Client,
+}
+
+pub enum Role {
     Server,
     Client,
 }
@@ -63,12 +73,12 @@ impl Widget for &Board {
 
         let title = Line::from(title);
 
-        let instructions = Line::from(vec![
-            " <Q>".into(),
-            " Quit ".bold(),
-        ]);
+        let instructions = Line::from(vec![" <Q>".into(), " Quit ".bold()]);
 
-        let block = Block::bordered().border_set(border::THICK).title(title.centered()).title_bottom(instructions);
+        let block = Block::bordered()
+            .border_set(border::THICK)
+            .title(title.centered())
+            .title_bottom(instructions);
         let mut fill: [String; 9] = [const { String::new() }; 9];
         for (i, field) in self.board.iter().enumerate() {
             fill[i] = match field {
