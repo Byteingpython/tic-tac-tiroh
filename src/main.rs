@@ -8,6 +8,7 @@ use util::{get_or_create_secret, Role};
 
 mod error;
 mod tic_tac_toe;
+mod rock_paper_scissor;
 mod util;
 
 const WEB3_ALPN: &[u8] = b"WEB3_2024";

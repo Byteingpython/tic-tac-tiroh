@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.95"
+chacha20poly1305 = "0.10.1"
 clap = { version = "4.5.18", features = ["derive"] }
 crossterm = { version = "0.28.1", features = ["event-stream"] }
 futures-lite = "2.6.0"
