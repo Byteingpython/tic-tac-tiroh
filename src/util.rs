@@ -1,21 +1,12 @@
-use std::sync::Arc;
-
-use crossterm::event::{Event, EventStream};
-use futures_lite::StreamExt;
 use ratatui::{
-    crossterm::event::{KeyCode, KeyEventKind},
     style::Stylize,
     symbols::border,
     text::Line,
     widgets::{Block, Paragraph, Widget},
-    DefaultTerminal,
 };
 use std::str::FromStr;
-use tokio::sync::{mpsc, oneshot, Mutex};
 
 use iroh::SecretKey;
-
-use crate::error::Result;
 
 pub fn get_or_create_secret() -> anyhow::Result<SecretKey> {
     if let Ok(secret) = std::env::var("SECRET") {
