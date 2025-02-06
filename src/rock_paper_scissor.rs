@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
@@ -18,11 +18,17 @@ use tokio::{io::{AsyncReadExt, AsyncWriteExt}, sync::{mpsc, Mutex}};
 
 use crate::{error::{Error, Result}, util::Role};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Guess {
     Rock,
     Paper,
     Scissors,
+}
+
+impl Display for Guess {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 impl TryFrom<u32> for Guess {
@@ -77,7 +83,7 @@ impl Guess {
 enum State {
     Waiting,
     Guess(Guess),
-    Result(bool),
+    Result(bool, Guess),
 }
 
 #[derive(Clone)]
@@ -143,27 +149,28 @@ impl RockPaperScissors {
         let other_guess = match *self.role {
             Role::Client => {
                 let (encrypted, key, nonce) = guess.encrypt()?;
-                send.write(encrypted.as_slice()).await?;
+                send.write_all(encrypted.as_slice()).await?;
                 let other_guess = Guess::try_from(recv.read_u8().await? as u32)?;
-                send.write(key.as_slice()).await?;
-                send.write(nonce.as_slice()).await?;
+                send.write_all(key.as_slice()).await?;
+                send.write_all(nonce.as_slice()).await?;
                 other_guess
             },
             Role::Server => {
-                // TODO: this is probably to large
-                let mut encrypted = Vec::new();
-                // TODO: Remove unwrap 
-                recv.read(&mut encrypted).await?.unwrap();
+                let mut encrypted: [u8; 17] = Default::default();
+                recv.read_exact(&mut encrypted).await?;
                 send.write_u8((&guess).into()).await?;
-                let mut key = Vec::new();
-                recv.read(&mut key).await?.unwrap();
-                let mut nonce = Vec::new();
-                recv.read(&mut nonce).await?.unwrap();
+                let mut key: [u8; 32] = Default::default();
+                recv.read_exact(&mut key).await?;
+                let mut nonce: [u8; 12] = Default::default();
+                recv.read_exact(&mut nonce).await?;
                 Guess::decrypt(&encrypted, &key, &nonce)?
             },
         };
-        *self.state.lock().await = State::Result(Self::is_win(guess, other_guess));
+        *self.state.lock().await = State::Result(Self::is_win(guess, other_guess), other_guess);
         self.render().await?;
+        if let Role::Client = *self.role {
+            connection.closed().await;
+        }
         Ok(())
     }
 
@@ -190,12 +197,12 @@ impl RockPaperScissors {
             .title_bottom(instructions);
         
         let text = match *self.state.lock().await {
-            State::Waiting => "Input your guess: Rock (1), Paper (2) or Scissors (3)?",
-            State::Guess(_) => "Waiting for your opponent to respond",
-            State::Result(result) => {
-                if result{"You won!"} else {"You lost!"}
+            State::Waiting => "Input your guess: Rock (1), Paper (2) or Scissors (3)?".to_string(),
+            State::Guess(_) => "Waiting for your opponent to respond".to_string(),
+            State::Result(result, guess) => {
+                if result{format!("Your opponent picked {}. You won!", guess)} else {format!("Your opponent picked {}. You lost!", guess)}
             }
-        }.to_string();
+        };
 
         let paragraph = Paragraph::new(text)
             .centered()
@@ -205,15 +212,23 @@ impl RockPaperScissors {
         Ok(())
     }
 
-    async fn run(&self, connection: Connection) -> Result<()> {
+    pub async fn run(&self, connection: Connection) -> Result<()> {
         let cloned_self = self.clone();
+        self.render().await?;
         // TODO: Too big
         let (input_sender, input_receiver) = mpsc::channel(4);
         let connection_handle = tokio::spawn(async move {
             cloned_self.connection_thread(connection, input_receiver).await
         });
         self.input_thread(input_sender).await?;
-        connection_handle.abort();
+        if connection_handle.is_finished() {
+            let result = connection_handle.await?;
+            if result.is_err() {
+                return result;
+            }
+        } else {
+            connection_handle.abort();
+        }
         Ok(())
     }
 }

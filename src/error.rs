@@ -13,6 +13,10 @@ pub enum Error {
     Connection(#[from] iroh::endpoint::ConnectionError),
     #[error("Error reading from connection: {0}")]
     Read(#[from] iroh::endpoint::ReadError),
+    #[error("Error reading from connection: {0}")]
+    ReadToEnd(#[from] iroh::endpoint::ReadToEndError),
+    #[error("Error reading from connection: {0}")]
+    ReadExact(#[from] iroh::endpoint::ReadExactError),
     #[error("Error writing to connection: {0}")]
     Write(#[from] iroh::endpoint::WriteError),
     #[error("Error joining on input thread: {0}")]

@@ -3,6 +3,7 @@ use iroh::{
     discovery::{dns::DnsDiscovery, pkarr::PkarrPublisher, ConcurrentDiscovery},
     Endpoint, NodeId,
 };
+use rock_paper_scissor::RockPaperScissors;
 use tic_tac_toe::TicTacToe;
 use util::{get_or_create_secret, Role};
 
@@ -37,6 +38,7 @@ struct Args {
 #[clap(rename_all = "kebab_case")]
 enum GameMode {
     TicTacToe,
+    RockPaperScissors
 }
 
 #[tokio::main]
@@ -65,12 +67,28 @@ async fn main() -> anyhow::Result<()> {
     let terminal = ratatui::init();
     let result = match args.id {
         Some(_) => {
-            let tic_tac_toe = TicTacToe::new(Role::Client, terminal);
-            tic_tac_toe.run(connection).await
+            match args.game {
+                GameMode::TicTacToe => {
+                    let tic_tac_toe = TicTacToe::new(Role::Client, terminal);
+                    tic_tac_toe.run(connection).await
+                },
+                GameMode::RockPaperScissors => {
+                    let rock_paper_scissors = RockPaperScissors::new(Role::Client, terminal);
+                    rock_paper_scissors.run(connection).await
+                }
+            }
         }
         None => {
-            let tic_tac_toe = TicTacToe::new(Role::Server, terminal);
-            tic_tac_toe.run(connection).await
+            match args.game {
+                GameMode::TicTacToe => {
+                    let tic_tac_toe = TicTacToe::new(Role::Server, terminal);
+                    tic_tac_toe.run(connection).await
+                },
+                GameMode::RockPaperScissors => {
+                    let rock_paper_scissors = RockPaperScissors::new(Role::Server, terminal);
+                    rock_paper_scissors.run(connection).await
+                }
+            }
         }
     };
     ratatui::restore();
