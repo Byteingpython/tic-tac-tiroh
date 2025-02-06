@@ -1,17 +1,12 @@
 use clap::{Parser, ValueEnum};
-use client::Client;
-use error::Error;
 use iroh::{
     discovery::{dns::DnsDiscovery, pkarr::PkarrPublisher, ConcurrentDiscovery},
     Endpoint, NodeId,
 };
-use server::Server;
 use tic_tac_toe::TicTacToe;
 use util::{get_or_create_secret, Role};
 
-mod client;
 mod error;
-mod server;
 mod tic_tac_toe;
 mod util;
 
@@ -31,6 +26,7 @@ const WEB3_ALPN: &[u8] = b"WEB3_2024";
 struct Args {
     /// The game you want to play
     #[arg(value_enum)]
+    #[clap(default_value_t = GameMode::TicTacToe)]
     game: GameMode,
     /// The ID of your peer. Leave blank to generate a new ID
     id: Option<NodeId>,
@@ -68,9 +64,8 @@ async fn main() -> anyhow::Result<()> {
     let terminal = ratatui::init();
     let result = match args.id {
         Some(_) => {
-            let mut client = Client::new(connection);
-            client.run(terminal).await?;
-            error::Result::Ok(())
+            let tic_tac_toe = TicTacToe::new(Role::Client, terminal);
+            tic_tac_toe.run(connection).await
         }
         None => {
             let tic_tac_toe = TicTacToe::new(Role::Server, terminal);

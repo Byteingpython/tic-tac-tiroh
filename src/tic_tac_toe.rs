@@ -66,7 +66,13 @@ impl TicTacToe {
                 let index = recv.read_u8().await?;
                 {
                     let mut board = self.board.lock().await;
-                    let _ = board.place(index as usize, Field::Client);
+                    let _ = board.place(
+                        index as usize,
+                        match *self.role {
+                            Role::Server => Field::Client,
+                            Role::Client => Field::Server,
+                        },
+                    );
                     if !board.is_playing() {
                         break;
                     }
